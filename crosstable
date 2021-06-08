@@ -1,12 +1,13 @@
 #!/usr/bin/perl
 use 5.014 ; use strict ; use warnings ; 
 use Scalar::Util qw/looks_like_number/; # 5.7 ~
-use Getopt::Std; getopts '::^:~=+:,:@:0:1:d:i:qvm:' , \my %o ;
+use Getopt::Std; getopts '::^:~=+:,:@:0:1:R:d:i:qvm:' , \my %o ;
 use Term::ANSIColor qw/:constants color/; $Term::ANSIColor::AUTORESET = 1 ;# v5.6 ~ 
 #use utf8 ; 
 my $isep = $o{i} // "\t" ; # 入力の区切り文字
 my $oemp = $o{'0'} // 0 ; # 出力のセルが未定義値の場合に代わりに出力する文字列
 my $sec = $o{'@'} // 10 ; # 何秒ごとに処理状態を出力するか。
+my $optR0 = defined $o{R} && $o{R} eq 0 ; 
 my $addC ; # ある列を加算する場合の列の指定
 my $t00 ;  # 表の左上隅に載せる文字列
 my %ax2 ; # キーは横軸の項目名となる。
@@ -48,13 +49,17 @@ sub Init {
 
 sub Input { 
   	$t00= $o{'='}? <> : "X1\tX2" ; 
-  	chomp $t00; $t00 =~ s{\t}{*}g ;
+  	chomp $t00; 
+  	$t00 =~ s/\r$// if $optR0 ; 
+  	$t00 =~ s{\t}{*}g ;
     $t00 = $o{1} if defined $o{1} ; # ) { my $t = quotemeta $o{1} ; $t00 =~ s/.*/$t/ }
   	#s/.*\t/\Q$o{1}\E/ if defined $o{1} ;
 
   	alarm $sec ; 
+  	* procR0 = $optR0 ? sub {} : sub { s/\r$// } ;  
 	while(<>){
 	    chomp;
+	    & procR0 ;
 	    my @F = split /$isep/o , $_ , -1 ; #($addC//2)+1 ; #3列目以降は連結する。  -x と組み合わせて使うとよいかも。
 	    my $add = defined $addC ? splice ( @F, $addC , 1 ) : 1 ; # 加算する場合の処理
 	    grep { $_ //= 'undef' } @F[0,1] ;
@@ -188,6 +193,7 @@ sub HELP_MESSAGE {
 
    -: FILE : 縦軸( -~ 指定なら横軸で) 集計されるべき項目(文字列)を指定する。FILEの中身に改行区切りで格納されているとする。
 
+   -R 0 ; 通常は改行が\r\n のようになっている場合、\rの場合は除去している。この処理が不都合な場合にこのオプションで行わない。
 
  Ctrl+C に関して : 
    Try the following : 
